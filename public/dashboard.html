@@ -1,0 +1,55 @@
+<div class="header">
+            <h1>Credit Card Vault Dashboard</h1>
+            <div class="user-info">
+                <span id="userRole"></span>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+        </div>
+
+        <!-- Add navigation menu -->
+        <div class="nav-links">
+            <a href="/dashboard.html" class="active">Dashboard</a>
+            <a href="/cards.html">Card Management</a>
+            <!-- Add link to addresses page for authorized roles -->
+            <a href="/addresses.html" id="addressesLink" style="display: none;">Addresses & Transactions</a>
+        </div>
+
+        <!-- Rest of dashboard content -->
+
+        <script>
+            const API_URL = 'http://localhost:3000/api';
+            
+            // Define the logout function
+            function logout() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login.html';
+            }
+            
+            // Check authentication on page load
+            window.addEventListener('load', async () => {
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+
+                if (!token || !user) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                try {
+                    // Parse user data
+                    const userData = JSON.parse(user);
+                    document.getElementById('userRole').textContent = `Role: ${userData.role}`;
+                    
+                    // Show addresses link only for clerk, financial_manager, and admin roles
+                    if (['clerk', 'financial_manager', 'admin'].includes(userData.role)) {
+                        document.getElementById('addressesLink').style.display = 'inline';
+                    }
+                    
+                    // Rest of the dashboard initialization code
+                } catch (error) {
+                    console.error('Error during authentication:', error);
+                    window.location.href = '/login.html';
+                }
+            });
+        </script>

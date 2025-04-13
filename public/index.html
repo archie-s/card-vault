@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Card Vault</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #34495e;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52,152,219,0.2);
+        }
+
+        .form-text {
+            display: block;
+            margin-top: 0.25rem;
+            color: #7f8c8d;
+            font-size: 0.875rem;
+        }
+
+        .submit-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #27ae60;
+        }
+
+        #cardList {
+            list-style: none;
+        }
+
+        #cardList li {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <h1>Store a Card</h1>
+    <form id="cardForm" class="card-form">
+        <div class="form-group">
+            <label for="cardNumber">Card Number</label>
+            <input type="text" placeholder="1234567890123456" id="cardNumber"
+                pattern="[0-9]{13,19}" maxlength="19" required>
+            <small class="form-text text-muted">Enter 13-19 digits without spaces</small>
+        </div>
+
+        <div class="form-group">
+            <label for="expiry">Expiration Date</label>
+            <input type="text" placeholder="MM/YY" id="expiry"
+                pattern="(0[1-9]|1[0-2])\/([0-9]{2})" maxlength="5" required>
+        </div>
+
+        <div class="form-group">
+            <label for="cvv">CVV</label>
+            <input type="password" placeholder="123" id="cvv"
+                pattern="[0-9]{3,4}" maxlength="4" required>
+        </div>
+
+        <div class="form-group">
+            <label for="cardholderName">Cardholder Name</label>
+            <input type="text" placeholder="John Doe" id="cardholderName"
+                pattern="[A-Za-z\s]+" required>
+        </div>
+
+        <button type="submit" class="submit-btn">Store Card Securely</button>
+    </form>
+
+    <h2>Stored Cards</h2>
+    <ul id="cardList"></ul>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api/cards';
+
+        document.getElementById('cardForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('Form submitted');
+
+            // Split expiry date into month and year
+            const [month, shortYear] = document.getElementById('expiry').value.split('/');
+
+            // Ensure month is two digits
+            const expiryMonth = month.padStart(2, '0');
+
+            // Convert 2-digit year to 4-digit year
+            const currentYear = new Date().getFullYear();
+            const currentCentury = Math.floor(currentYear / 100) * 100;
+            const fullYear = currentCentury + parseInt(shortYear);
+            const expiryYear = fullYear.toString();
+
+            const cardData = {
+                cardNumber: document.getElementById('cardNumber').value,
+                expiryMonth,
+                expiryYear,
+                cvv: document.getElementById('cvv').value,
+                cardholderName: document.getElementById('cardholderName').value,
+            };
+            console.log('Sending card data:', cardData);
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cardData)
+                });
+                console.log('Response status:', res.status);
+
+                const data = await res.json();
+                console.log('Response data:', data);
+
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    
+                    // Redirect based on user role
+                    if (data.user.role === 'admin') {
+                        window.location.href = '/admin/dashboard.html';
+                    } else {
+                        window.location.href = '/cards.html';
+                    }
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (err) {
+                console.error('Error submitting form:', err);
+                alert('Failed to submit form. Check console for details.');
+            }
+        });
+
+        async function loadCards() {
+            try {
+                const res = await fetch(API_URL);
+                console.log('Loading cards, status:', res.status);
+                const cards = await res.json();
+                console.log('Loaded cards:', cards);
+
+                const list = document.getElementById('cardList');
+                list.innerHTML = '';
+
+                cards.forEach(card => {
+                    const li = document.createElement('li');
+                    li.innerText = `Token: ${card.token} — Last4: ${card.lastFour || card.last4}`;
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Error loading cards:', err);
+            }
+        }
+
+        loadCards();
+    </script>
+</body>
+</html>
